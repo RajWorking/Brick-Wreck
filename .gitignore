@@ -1,0 +1,5 @@
+.idea/
+input.py
+support/
+venv/
+src/__pycache__/
