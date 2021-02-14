@@ -44,7 +44,7 @@ class Game:
 
             self.draw(self.paddle)
 
-            self.ball.set_position(self.paddle.x + int(self.paddle.shape[0] / 2), self.paddle.y - 1)
+            self.ball.move(self.paddle.x + int(self.paddle.shape[0] / 2), self.paddle.y - 1)
             self.check_collide()
 
             for brick in self.bricks:
@@ -122,9 +122,14 @@ class Game:
 
         # brick_list = [
         #     {
-        #         "x": 30,
+        #         "x": 26,
         #         "y": 10,
-        #         "level": 2
+        #         "level": 3
+        #     },
+        #     {
+        #         "x": 52,
+        #         "y": 10,
+        #         "level": 3
         #     }
         # ]
 
