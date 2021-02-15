@@ -2,13 +2,14 @@ import os
 
 terminal_size = os.get_terminal_size()
 
-DEBUG = True
+DEBUG = False
 
 WIDTH = terminal_size.columns
 HEIGHT = terminal_size.lines - 10
 
-GAME_SPEED = 100
+GAME_SPEED = 15
 LIVES = 5
+INIT_SPEED = -1
 
 QUIT_CHR = 'q'
 MOVE_LEFT = 'a'

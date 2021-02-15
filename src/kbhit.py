@@ -3,6 +3,7 @@ import sys
 import termios
 from select import select
 
+
 class KBHit:
     '''Refer: "https://stackoverflow.com/a/22085679"
     '''
@@ -46,4 +47,3 @@ class KBHit:
         '''Clears the input buffer
         '''
         termios.tcflush(sys.stdin, termios.TCIFLUSH)
-

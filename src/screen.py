@@ -8,6 +8,7 @@ import config
 class Screen:
     '''Manage how screen gets refreshed by updating frames
     '''
+
     def clear(self):
         """Clear the current frame
         """

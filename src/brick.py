@@ -3,9 +3,8 @@ from object import Object
 
 class Brick(Object):
     def __init__(self, x, y):
-        super().__init__([4, 1])
-        self.x = x
-        self.y = y
+        super().__init__(shape=[4, 1], x=x, y=y)
+
 
 class Glass_brick(Brick):
     def __init__(self, x, y, level):
