@@ -10,6 +10,7 @@ HEIGHT = terminal_size.lines - 10
 GAME_SPEED = 15
 LIVES = 5
 INIT_SPEED = -2
+MAX_BALLS = 6
 
 QUIT_CHR = 'q'
 MOVE_LEFT = 'a'

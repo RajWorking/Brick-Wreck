@@ -3,9 +3,11 @@ from object import Object
 
 
 class Ball(Object):
-    def __init__(self):
-        super().__init__(shape=[2, 1], face="🎱", speed=[config.INIT_SPEED, -1])
-        self.moving = 0
+    def __init__(self, x=0, y=0, speed=None, moving=0):
+        if speed is None:
+            speed = [config.INIT_SPEED, -1]
+        super().__init__(shape=[2, 1], face="🎱", speed=speed, x=x, y=y)
+        self.moving = moving
         self.paddle_rel_pos = 0  # relative position of ball on paddle
 
     def release(self):

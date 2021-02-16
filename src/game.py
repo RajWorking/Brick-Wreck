@@ -17,12 +17,13 @@ class Game:
     def __init__(self):
         self.screen = Screen()
         self.paddle = Paddle()
-        self.ball = Ball()
+        self.balls = [Ball()]
         self.lives = config.LIVES
         self.bricks = []
         self.powers_falling = []
         self.powers_expire = np.zeros(8)
         self.loop = 1
+        self.game_speed = config.GAME_SPEED
 
         print("\033[?25l\033[2J")  # disappear cursor and clear screen
 
@@ -34,7 +35,7 @@ class Game:
             self.screen.clear()
             print(self.loop, "😁")
 
-            print("\033[KLives ❤", self.lives)
+            print("\033[KLives ❤", self.lives, self.game_speed)
             print("\033[KBricks left: ", len(self.bricks))
             print("\033[KPowers: ", self.powers_expire)
             self.loop += 1
@@ -51,17 +52,21 @@ class Game:
 
             # Increase refresh rate for fast ball
             if config.DEBUG:
-                config.GAME_SPEED = 10000
+                self.game_speed = 10000
             elif self.is_pow_active(4):
-                config.GAME_SPEED = 20
+                self.game_speed = 1.5 * config.GAME_SPEED
             else:
-                config.GAME_SPEED = 10
+                self.game_speed = config.GAME_SPEED
 
-            # Check power up effects on ball
-            if self.is_pow_active(5):
-                self.ball.set_looks(face="👺")
-            else:
-                self.ball.reset_looks()
+            # Check power up effects on balls
+            for ball in self.balls:
+                if self.is_pow_active(5):
+                    ball.set_looks(face="👺")
+                else:
+                    ball.reset_looks()
+
+                if not self.is_pow_active(6):
+                    ball.paddle_rel_pos = int(self.paddle.shape[0] / 2)
 
             # Check power up effects on paddle
             if config.DEBUG:
@@ -75,33 +80,37 @@ class Game:
 
             self.draw(self.paddle)
 
-            if not self.is_pow_active(6):
-                self.ball.paddle_rel_pos = int(self.paddle.shape[0] / 2)
-
-            self.ball.move(self.paddle.x + self.ball.paddle_rel_pos, self.paddle.y - 1)
-            self.check_collide()
-
             for brick in self.bricks:
                 self.draw(brick)
+
             for power in self.powers_falling:
                 self.draw(power)
 
-            if self.ball.y >= config.HEIGHT:
-                print('\033[K Dead')
-                self.powers_expire = np.zeros(8)  # reset powers on dying
+            self.fall_power_ups()
+
+            for ball in self.balls:
+                ball.move(self.paddle.x + ball.paddle_rel_pos, self.paddle.y - 1)
+                self.check_collide(ball)
+
+                if ball.y >= config.HEIGHT:
+                    self.balls.remove(ball)
+                    # ball.freeze()
+                    # ball.speed = [config.INIT_SPEED, -1]
+                else:
+                    self.draw(ball)
+                    # print('\033[K ', ball.x, ball.y, ball.speed, ball.moving, ball.paddle_rel_pos)
+                    # if config.DEBUG:
+                    #     with open("debug_print/ball_path.txt", "a") as f:
+                    #         print(self.loop, ball.x, ball.y, ball.speed, file=f)
+
+            if len(self.balls) == 0:
                 self.lives -= 1
-                self.ball.freeze()
-                self.ball.speed = [config.INIT_SPEED, -1]
-            else:
-                print('\033[K ', self.ball.x, self.ball.y, self.ball.speed, self.ball.moving, self.ball.paddle_rel_pos)
-                if config.DEBUG:
-                    with open("debug_print/ball_path.txt", "a") as f:
-                        print(self.loop, self.ball.x, self.ball.y, self.ball.speed, file=f)
-                self.draw(self.ball)
+                self.powers_expire = np.zeros(8)  # reset powers on dying
+                self.balls = [Ball()]
 
             print('\033[31m', ''.join('X' for _ in range(config.WIDTH - 2)), '\033[0m')
             self.screen.show()
-            time.sleep(1 / config.GAME_SPEED)
+            time.sleep(1 / self.game_speed)
             if not config.DEBUG:
                 if len(self.bricks) == 0:
                     break
@@ -109,29 +118,51 @@ class Game:
         if len(self.bricks) == 0:
             print("YOU WON!")
 
-    def check_collide(self):
+    def check_collide(self, ball):
         # Walls
-        if self.ball.y <= 0:
-            self.ball.reflect(1)  # Vertical
-            self.ball.set_position(y=0)
-        if self.ball.x <= 0 or self.ball.x >= config.WIDTH - 2:
-            self.ball.reflect(0)  # Horizontal
-            self.ball.set_position(x=min(max(0, self.ball.x), config.WIDTH - 2))
+        if ball.y <= 0:
+            ball.reflect(1)  # Vertical
+            ball.set_position(y=0)
+        if ball.x <= 0 or ball.x >= config.WIDTH - 2:
+            ball.reflect(0)  # Horizontal
+            ball.set_position(x=min(max(0, ball.x), config.WIDTH - 2))
 
         # Paddle
-        if self.ball.y >= self.paddle.y - 1 and self.ball.x in range(self.paddle.x - 1,
-                                                                     self.paddle.x + self.paddle.shape[0] - 1):
-            if self.ball.moving:
-                self.ball.reflect(1)  # Vertical
-                self.ball.set_position(y=self.paddle.y - 1)
+        if ball.y >= self.paddle.y - 1 and ball.x in range(self.paddle.x - 1,
+                                                           self.paddle.x + self.paddle.shape[0] - 1):
+            if ball.moving:
+                ball.reflect(1)  # Vertical
+                ball.set_position(y=self.paddle.y - 1)
                 if not config.DEBUG:
-                    self.ball.speed[0] += 2 * int(
-                        (self.ball.x - (self.paddle.x + int(self.paddle.shape[0] / 2) - 1)) / 4)
+                    ball.speed[0] += 2 * int(
+                        (ball.x - (self.paddle.x + int(self.paddle.shape[0] / 2) - 1)) / 4)
 
                 if self.is_pow_active(6):
-                    self.ball.freeze()
-                    self.ball.paddle_rel_pos = self.ball.x - self.paddle.x
+                    ball.freeze()
+                    ball.paddle_rel_pos = ball.x - self.paddle.x
 
+        # Bricks
+        for brick in self.bricks:
+            if (dir := ball.path_cut(brick)) != -1:
+
+                if self.is_pow_active(5):
+                    brick.level = 0
+                else:
+                    ball.reflect(dir)
+                    if config.DEBUG:
+                        with open("debug_print/brick_collide.txt", "a") as f:
+                            print(self.loop, brick.x, brick.y, file=f)
+                    if hasattr(brick, 'level'):
+                        brick.level -= 1
+
+                if hasattr(brick, 'level') and brick.level <= 0:
+                    if not self.is_pow_active(5):  # do not drop powerups if thru-ball is active
+                        self.powers_falling.append(PowerUp(x=brick.x, y=brick.y + 1, type=random.randint(1,7)))
+
+                    self.bricks.remove(brick)
+                # break
+
+    def fall_power_ups(self):
         # PowerUps Falling
         for power in self.powers_falling:
             power.y += 1
@@ -144,28 +175,9 @@ class Game:
                         self.powers_expire[power.type] = self.loop + 300
                     elif power.type == 7:
                         self.lives += 1
+                    elif power.type == 3:
+                        self.duplicate_balls()
                 self.powers_falling.remove(power)
-
-        # Bricks
-        for brick in self.bricks:
-            if (dir := self.ball.path_cut(brick)) != -1:
-
-                if self.is_pow_active(5):
-                    brick.level = 0
-                else:
-                    self.ball.reflect(dir)
-                    if config.DEBUG:
-                        with open("debug_print/brick_collide.txt", "a") as f:
-                            print(self.loop, brick.x, brick.y, file=f)
-                    if hasattr(brick, 'level'):
-                        brick.level -= 1
-
-                if hasattr(brick, 'level') and brick.level <= 0:
-                    if not self.is_pow_active(5):  # do not drop powerups if thru-ball is active
-                        self.powers_falling.append(PowerUp(x=brick.x, y=brick.y + 1, type=random.randint(1, 7)))
-
-                    self.bricks.remove(brick)
-                # break
 
     def populate_bricks(self):
         brick_list = []
@@ -211,6 +223,13 @@ class Game:
     def is_pow_active(self, type):
         return self.powers_expire[type] > self.loop
 
+    def duplicate_balls(self):
+        if len(self.balls) <= int(config.MAX_BALLS/2):
+            new_balls = []
+            for ball in self.balls:
+                new_balls.append(Ball(x=ball.x, y=ball.y, speed=list(map(lambda x: -x, ball.speed)), moving=1))
+            self.balls.extend(new_balls)
+
     def handle_input(self, ch):
         print("\033[K Key pressed: ", ch)
         if ch == config.MOVE_LEFT:
@@ -218,8 +237,9 @@ class Game:
         elif ch == config.MOVE_RIGHT:
             self.paddle.move(1)
         elif ch == config.RELEASE:
-            if not self.ball.moving:
-                self.ball.release()
+            for ball in self.balls:
+                if not ball.moving:
+                    ball.release()
 
     def draw(self, obj):
         for row in range(obj.shape[1]):
