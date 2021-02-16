@@ -7,7 +7,7 @@ class Paddle(Object):
         if config.DEBUG:
             super().__init__(shape=[config.WIDTH, 2], face="💀", speed=[2, 0], x=0, y=config.HEIGHT - 2)
         else:
-            super().__init__(shape=[18, 2], face="💀", speed=[2, 0], x=int(config.WIDTH / 2), y=config.HEIGHT - 2)
+            super().__init__(shape=[20, 2], face="💀", speed=[2, 0], x=int(config.WIDTH / 2), y=config.HEIGHT - 2)
 
     def move(self, dir):
         if dir == -1:

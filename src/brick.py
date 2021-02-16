@@ -3,7 +3,7 @@ from object import Object
 
 class Brick(Object):
     def __init__(self, x, y):
-        super().__init__(shape=[4, 1], x=x, y=y)
+        super().__init__(shape=[4, 1], x=x, y=y, face="⬛")
 
 
 class Glass_brick(Brick):
@@ -22,9 +22,3 @@ class Glass_brick(Brick):
         elif self.level == 4:
             return "🟥"
         return " "
-
-
-class Heavy_brick(Brick):
-    def __init__(self, x, y):
-        super().__init__(x, y)
-        self.breakable = True

@@ -4,12 +4,12 @@ from object import Object
 
 class Ball(Object):
     def __init__(self):
-        super().__init__(shape=[2, 1], face="🎱", speed=[0, 0])
+        super().__init__(shape=[2, 1], face="🎱", speed=[config.INIT_SPEED, -1])
         self.moving = 0
+        self.paddle_rel_pos = 0 # relative position of ball on paddle
 
     def release(self):
         self.moving = 1
-        self.speed = [config.INIT_SPEED, -1]
 
     def set_position(self, x, y):
         self.x = x
