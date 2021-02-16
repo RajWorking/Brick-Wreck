@@ -6,14 +6,16 @@ class Ball(Object):
     def __init__(self):
         super().__init__(shape=[2, 1], face="🎱", speed=[config.INIT_SPEED, -1])
         self.moving = 0
-        self.paddle_rel_pos = 0 # relative position of ball on paddle
+        self.paddle_rel_pos = 0  # relative position of ball on paddle
 
     def release(self):
         self.moving = 1
 
-    def set_position(self, x, y):
-        self.x = x
-        self.y = y
+    def freeze(self):
+        self.moving = 0
+
+    def reset_looks(self):
+        self.set_looks(face="🎱")
 
     def move(self, x=0, y=0):
         if self.moving == 0:
@@ -38,11 +40,11 @@ class Ball(Object):
         return False
 
     def path_cut(self, obstacle) -> int:
-        _x1 = self.x
-        _x2 = self.x + self.speed[0] + 1
+        x1 = self.x
+        x2 = self.x + self.speed[0] + 1
         if self.speed[0] < 0:
-            _x1 = self.x + self.speed[0]
-            _x2 = self.x + 1
+            x1 = self.x + self.speed[0]
+            x2 = self.x + 1
         if self.speed[0] != 0 and \
                 (self.y <= obstacle.y <= self.y + self.speed[1] or
                  self.y >= obstacle.y >= self.y + self.speed[1]):
@@ -53,11 +55,11 @@ class Ball(Object):
                 self.set_position(obstacle.x + obstacle.shape[0], obstacle.y)
                 return 0
 
-        if self.speed[1] != 0 and self.check_intersect([_x1, _x2], [obstacle.x, obstacle.x + obstacle.shape[0] - 1]):
+        if self.speed[1] != 0 and self.check_intersect([x1, x2], [obstacle.x, obstacle.x + obstacle.shape[0] - 1]):
             if self.y <= obstacle.y < self.y + self.speed[1]:
-                self.set_position(self.x, obstacle.y - 1)
+                self.set_position(y=obstacle.y - 1)
                 return 1
             if self.y >= obstacle.y > self.y + self.speed[1]:
-                self.set_position(self.x, obstacle.y + 1)
+                self.set_position(y=obstacle.y + 1)
                 return 1
         return -1

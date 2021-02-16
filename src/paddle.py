@@ -11,6 +11,9 @@ class Paddle(Object):
 
     def move(self, dir):
         if dir == -1:
-            self.x = max(self.x - self.speed[0], 0)
+            self.set_position(x=max(self.x - self.speed[0], 0))
         elif dir == 1:
-            self.x = min(self.x + self.speed[0], config.WIDTH - self.shape[0])
+            self.set_position(x=min(self.x + self.speed[0], config.WIDTH - self.shape[0]))
+
+    def reset_looks(self):
+        self.set_looks(shape=[20, 2], face="💀")

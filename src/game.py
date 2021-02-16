@@ -8,6 +8,7 @@ from ball import Ball
 from brick import Glass_brick, Brick
 from kbhit import KBHit
 from paddle import Paddle
+from powerup import PowerUp
 from screen import Screen
 
 
@@ -48,33 +49,33 @@ class Game:
 
             kb_inp.clear()
 
-            if self.powers_expire[4] > self.loop:
+            # Increase refresh rate for fast ball
+            if config.DEBUG:
+                config.GAME_SPEED = 10000
+            elif self.is_pow_active(4):
                 config.GAME_SPEED = 20
             else:
                 config.GAME_SPEED = 10
-            if config.DEBUG:
-                config.GAME_SPEED = 10000
 
-            if self.powers_expire[5] > self.loop:
-                self.ball.face = "👺"
+            # Check power up effects on ball
+            if self.is_pow_active(5):
+                self.ball.set_looks(face="👺")
             else:
-                self.ball.face = "🎱"
+                self.ball.reset_looks()
 
-            if self.powers_expire[1] > self.loop:
-                self.paddle.shape = [28, 1]
-                self.paddle.face = "🌀"
-            elif self.powers_expire[2] > self.loop:
-                self.paddle.shape = [12, 1]
-                self.paddle.face = "📍"
-            else:
-                self.paddle.shape = [20, 2]
-                self.paddle.face = "💀"
-
+            # Check power up effects on paddle
             if config.DEBUG:
-                self.paddle.shape = [config.WIDTH, 2]
+                self.paddle.set_looks(shape=[config.WIDTH, 2], face="🍄")
+            elif self.is_pow_active(1):
+                self.paddle.set_looks(shape=[28, 1], face="🌀")
+            elif self.is_pow_active(2):
+                self.paddle.set_looks(shape=[12, 1], face="📍")
+            else:
+                self.paddle.reset_looks()
+
             self.draw(self.paddle)
 
-            if self.powers_expire[6] <= self.loop:
+            if not self.is_pow_active(6):
                 self.ball.paddle_rel_pos = int(self.paddle.shape[0] / 2)
 
             self.ball.move(self.paddle.x + self.ball.paddle_rel_pos, self.paddle.y - 1)
@@ -87,9 +88,9 @@ class Game:
 
             if self.ball.y >= config.HEIGHT:
                 print('\033[K Dead')
-                self.powers_expire = np.zeros(8)
+                self.powers_expire = np.zeros(8)  # reset powers on dying
                 self.lives -= 1
-                self.ball.moving = 0
+                self.ball.freeze()
                 self.ball.speed = [config.INIT_SPEED, -1]
             else:
                 print('\033[K ', self.ball.x, self.ball.y, self.ball.speed, self.ball.moving, self.ball.paddle_rel_pos)
@@ -112,23 +113,23 @@ class Game:
         # Walls
         if self.ball.y <= 0:
             self.ball.reflect(1)  # Vertical
-            self.ball.y = 0
+            self.ball.set_position(y=0)
         if self.ball.x <= 0 or self.ball.x >= config.WIDTH - 2:
             self.ball.reflect(0)  # Horizontal
-            self.ball.x = max(0, self.ball.x)
-            self.ball.x = min(self.ball.x, config.WIDTH - 2)
+            self.ball.set_position(x=min(max(0, self.ball.x), config.WIDTH - 2))
 
         # Paddle
         if self.ball.y >= self.paddle.y - 1 and self.ball.x in range(self.paddle.x - 1,
                                                                      self.paddle.x + self.paddle.shape[0] - 1):
             if self.ball.moving:
                 self.ball.reflect(1)  # Vertical
-                self.ball.y = self.paddle.y - 1
+                self.ball.set_position(y=self.paddle.y - 1)
                 if not config.DEBUG:
-                    self.ball.speed[0] += 2 * int((self.ball.x - (self.paddle.x + int(self.paddle.shape[0] / 2) - 1)) / 4)
+                    self.ball.speed[0] += 2 * int(
+                        (self.ball.x - (self.paddle.x + int(self.paddle.shape[0] / 2) - 1)) / 4)
 
-                if self.powers_expire[6] > self.loop:
-                    self.ball.moving = 0
+                if self.is_pow_active(6):
+                    self.ball.freeze()
                     self.ball.paddle_rel_pos = self.ball.x - self.paddle.x
 
         # PowerUps Falling
@@ -137,32 +138,31 @@ class Game:
             if power.y >= config.HEIGHT - 2:
                 if power.x in range(self.paddle.x - 1, self.paddle.x + self.paddle.shape[0] - 1):
                     self.powers_expire[power.type] = self.loop + 300
-                    if power.type == 1:
-                        self.powers_expire[2] = 0
-                    elif power.type == 2:
-                        self.powers_expire[1] = 0
+                    if power.type == 1 or power.type == 2:
+                        self.powers_expire[3 - power.type] = 0  # long paddle means not short and vice versa
                     elif power.type == 4:
                         self.powers_expire[power.type] = self.loop + 300
+                    elif power.type == 7:
+                        self.lives += 1
                 self.powers_falling.remove(power)
 
         # Bricks
         for brick in self.bricks:
             if (dir := self.ball.path_cut(brick)) != -1:
 
-                if self.powers_expire[5] > self.loop:
+                if self.is_pow_active(5):
                     brick.level = 0
                 else:
                     self.ball.reflect(dir)
                     if config.DEBUG:
                         with open("debug_print/brick_collide.txt", "a") as f:
                             print(self.loop, brick.x, brick.y, file=f)
-                    if hasattr(brick,'level'):
+                    if hasattr(brick, 'level'):
                         brick.level -= 1
 
-                if hasattr(brick,'level') and brick.level <= 0:
-                    # if self.powers_expire[5] <= self.loop:      # do not drop powerups if thru-ball is active
-                    #     self.powers_falling.append(PowerUp(x=brick.x, y=brick.y + 1, type=5))
-                        # self.powers_falling.append(PowerUp(x=brick.x, y=brick.y + 1, type=random.randint(1, 6)))
+                if hasattr(brick, 'level') and brick.level <= 0:
+                    if not self.is_pow_active(5):  # do not drop powerups if thru-ball is active
+                        self.powers_falling.append(PowerUp(x=brick.x, y=brick.y + 1, type=random.randint(1, 7)))
 
                     self.bricks.remove(brick)
                 # break
@@ -202,10 +202,14 @@ class Game:
 
         for obj in brick_list:
             if obj['x'] + 4 <= config.WIDTH and obj['y'] <= config.HEIGHT - 5:
-                if random.randint(1,10) == 7:
+                if random.randint(1, 10) == 7:
                     self.bricks.append(Brick(obj['x'], obj['y']))
                 else:
                     self.bricks.append(Glass_brick(obj['x'], obj['y'], obj['level']))
+
+    # is this power active
+    def is_pow_active(self, type):
+        return self.powers_expire[type] > self.loop
 
     def handle_input(self, ch):
         print("\033[K Key pressed: ", ch)
@@ -214,7 +218,7 @@ class Game:
         elif ch == config.MOVE_RIGHT:
             self.paddle.move(1)
         elif ch == config.RELEASE:
-            if self.ball.moving == 0:
+            if not self.ball.moving:
                 self.ball.release()
 
     def draw(self, obj):

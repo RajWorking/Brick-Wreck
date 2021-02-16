@@ -10,7 +10,6 @@ class Glass_brick(Brick):
     def __init__(self, x, y, level):
         super().__init__(x, y)
         self.level = level
-        self.face = self.get_face()
 
     def get_face(self):
         if self.level == 1:
