@@ -25,6 +25,14 @@ class Ball(Object):
         else:
             self.set_position(self.x + self.speed[0], self.y + self.speed[1])
 
+    def check_walls(self):
+        if self.y <= 0:
+            self.reflect(1)  # Vertical
+            self.set_position(y=0)
+        if self.x <= 0 or self.x >= config.WIDTH - 2:
+            self.reflect(0)  # Horizontal
+            self.set_position(x=min(max(0, self.x), config.WIDTH - 2))
+
     ''' 
         0: Horizontal        
         1: Vertical

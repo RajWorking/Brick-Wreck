@@ -37,6 +37,7 @@ class Game:
 
             print("\033[KLives ❤", self.lives, self.game_speed)
             print("\033[KBricks left: ", len(self.bricks))
+            print("\033[KBall: ", self.balls[0].x, self.balls[0].y, self.balls[0].speed)
             print("\033[KPowers: ", self.powers_expire)
             self.loop += 1
 
@@ -67,6 +68,8 @@ class Game:
 
                 if not self.is_pow_active(6):
                     ball.paddle_rel_pos = int(self.paddle.shape[0] / 2)
+                else:
+                    ball.paddle_rel_pos = min(ball.paddle_rel_pos, self.paddle.shape[0] - 2)
 
             # Check power up effects on paddle
             if config.DEBUG:
@@ -78,6 +81,7 @@ class Game:
             else:
                 self.paddle.reset_looks()
 
+            self.paddle.move(0)
             self.draw(self.paddle)
 
             for brick in self.bricks:
@@ -120,12 +124,7 @@ class Game:
 
     def check_collide(self, ball):
         # Walls
-        if ball.y <= 0:
-            ball.reflect(1)  # Vertical
-            ball.set_position(y=0)
-        if ball.x <= 0 or ball.x >= config.WIDTH - 2:
-            ball.reflect(0)  # Horizontal
-            ball.set_position(x=min(max(0, ball.x), config.WIDTH - 2))
+        ball.check_walls()
 
         # Paddle
         if ball.y >= self.paddle.y - 1 and ball.x in range(self.paddle.x - 1,
@@ -157,7 +156,7 @@ class Game:
 
                 if hasattr(brick, 'level') and brick.level <= 0:
                     if not self.is_pow_active(5):  # do not drop powerups if thru-ball is active
-                        self.powers_falling.append(PowerUp(x=brick.x, y=brick.y + 1, type=random.randint(1,7)))
+                        self.powers_falling.append(PowerUp(x=brick.x, y=brick.y + 1, type=random.randint(1, 7)))
 
                     self.bricks.remove(brick)
                 # break
@@ -186,6 +185,7 @@ class Game:
 
         for block in range(0, 3):
             for grp in range(0, 18):
+                # for grp in range(0, 8):
                 for br in range(0, 5):
                     if grp % 3 != block % 3:
                         brick = {
@@ -206,9 +206,24 @@ class Game:
 
         # brick_list = [
         #     {
-        #         "x": 26,
-        #         "y": 10,
+        #         "x": 92,
+        #         "y": 36,
         #         "level": 1
+        #     },
+        #     {
+        #         "x": 96,
+        #         "y": 36,
+        #         "level": 2
+        #     },
+        #     {
+        #         "x": 100,
+        #         "y": 36,
+        #         "level": 3
+        #     },
+        #     {
+        #         "x": 104,
+        #         "y": 36,
+        #         "level": 4
         #     }
         # ]
 
@@ -224,7 +239,7 @@ class Game:
         return self.powers_expire[type] > self.loop
 
     def duplicate_balls(self):
-        if len(self.balls) <= int(config.MAX_BALLS/2):
+        if len(self.balls) <= int(config.MAX_BALLS / 2):
             new_balls = []
             for ball in self.balls:
                 new_balls.append(Ball(x=ball.x, y=ball.y, speed=list(map(lambda x: -x, ball.speed)), moving=1))
