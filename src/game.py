@@ -5,7 +5,7 @@ import numpy as np
 
 import config
 from ball import Ball
-from brick import Glass_brick, Brick
+from brick import Glass_brick, Super_Brick, Brick
 from kbhit import KBHit
 from paddle import Paddle
 from powerup import PowerUp
@@ -20,6 +20,8 @@ class Game:
         self.balls = [Ball()]
         self.lives = config.LIVES
         self.bricks = []
+        self.super_bricks = []
+        self.unbreakable_cnt = 0
         self.powers_falling = []
         self.powers_expire = np.zeros(8)
         self.loop = 1
@@ -84,16 +86,17 @@ class Game:
             self.paddle.move(0)
             self.draw(self.paddle)
 
-            for brick in self.bricks:
+            for brick in self.bricks + self.super_bricks:
                 self.draw(brick)
 
             for power in self.powers_falling:
                 self.draw(power)
 
             self.fall_power_ups()
+            self.collateral()  # clean up bricks from list
 
             for ball in self.balls:
-                ball.move(self.paddle.x + ball.paddle_rel_pos, self.paddle.y - 1)
+                ball.move(2 * int((self.paddle.x + ball.paddle_rel_pos) / 2), self.paddle.y - 1)
                 self.check_collide(ball)
 
                 if ball.y >= config.HEIGHT:
@@ -119,8 +122,21 @@ class Game:
                 if len(self.bricks) == 0:
                     break
         print('GAME OVER!')
-        if len(self.bricks) == 0:
+        if len(self.bricks) <= self.unbreakable_cnt:
             print("YOU WON!")
+
+    def collateral(self):
+        for brick in self.super_bricks:
+            if brick.active:
+                brick.explode(self.super_bricks + self.bricks)
+                self.super_bricks.remove(brick)
+        for brick in self.bricks:
+            if brick.active:
+                if not self.is_pow_active(5):  # do not drop powerups if thru-ball is active
+                    self.powers_falling.append(PowerUp(x=brick.x, y=brick.y + 1, type=random.randint(1, 7)))
+                if brick.__class__.__name__ == "Brick":
+                    self.unbreakable_cnt -= 1
+                self.bricks.remove(brick)
 
     def check_collide(self, ball):
         # Walls
@@ -133,8 +149,7 @@ class Game:
                 ball.reflect(1)  # Vertical
                 ball.set_position(y=self.paddle.y - 1)
                 if not config.DEBUG:
-                    ball.speed[0] += 2 * int(
-                        (ball.x - (self.paddle.x + int(self.paddle.shape[0] / 2) - 1)) / 4)
+                    ball.accelerate(2 * int((ball.x - (self.paddle.x + int(self.paddle.shape[0] / 2) - 1)) / 4))
 
                 if self.is_pow_active(6):
                     ball.freeze()
@@ -143,23 +158,24 @@ class Game:
         # Bricks
         for brick in self.bricks:
             if (dir := ball.path_cut(brick)) != -1:
+                if config.DEBUG:
+                    with open("debug_print/brick_collide.txt", "a") as f:
+                        print(self.loop, brick.x, brick.y, file=f)
 
                 if self.is_pow_active(5):
-                    brick.level = 0
+                    brick.destroy()
                 else:
                     ball.reflect(dir)
-                    if config.DEBUG:
-                        with open("debug_print/brick_collide.txt", "a") as f:
-                            print(self.loop, brick.x, brick.y, file=f)
                     if hasattr(brick, 'level'):
                         brick.level -= 1
-
-                if hasattr(brick, 'level') and brick.level <= 0:
-                    if not self.is_pow_active(5):  # do not drop powerups if thru-ball is active
-                        self.powers_falling.append(PowerUp(x=brick.x, y=brick.y + 1, type=random.randint(1, 7)))
-
-                    self.bricks.remove(brick)
+                        if brick.level <= 0:
+                            brick.destroy()
                 # break
+
+        # Super Bricks
+        for brick in self.super_bricks:
+            if (dir := ball.path_cut(brick)) != -1:
+                brick.destroy()
 
     def fall_power_ups(self):
         # PowerUps Falling
@@ -180,26 +196,36 @@ class Game:
 
     def populate_bricks(self):
         brick_list = []
+        super_brick_list = []
         _x = 14
         _y = 10
 
         for block in range(0, 3):
             for grp in range(0, 18):
                 # for grp in range(0, 8):
-                for br in range(0, 5):
-                    if grp % 3 != block % 3:
-                        brick = {
-                            "x": _x,
-                            "y": _y,
-                            "level": random.randint(1, 4)
-                        }
-                        brick_list.append(brick)
-                        if config.DEBUG:
-                            with open("debug_print/bricks.txt", "a") as f:
-                                print(brick, file=f)
-                    _x += 2
-                    # _x += 4
-                    _y += 1 if grp % 2 else -1
+                if random.randint(1, 5) == 3:
+                    for br in range(0, 5):
+                        if grp % 3 != block % 3:
+                            brick = {
+                                "x": _x,
+                                "y": _y,
+                            }
+                            super_brick_list.append(brick)
+                        _x += 2
+                        # _x += 4
+                        _y += 1 if grp % 2 else -1
+                else:
+                    for br in range(0, 5):
+                        if grp % 3 != block % 3:
+                            brick = {
+                                "x": _x,
+                                "y": _y,
+                                "level": random.randint(1, 4)
+                            }
+                            brick_list.append(brick)
+                        _x += 2
+                        # _x += 4
+                        _y += 1 if grp % 2 else -1
             _y += 5
             # _y += 1
             _x = 14
@@ -231,8 +257,19 @@ class Game:
             if obj['x'] + 4 <= config.WIDTH and obj['y'] <= config.HEIGHT - 5:
                 if random.randint(1, 10) == 7:
                     self.bricks.append(Brick(obj['x'], obj['y']))
+                    self.unbreakable_cnt += 1
+                elif random.randint(1, 10) == 3:
+                    self.super_bricks.append(Super_Brick(obj['x'], obj['y']))
                 else:
                     self.bricks.append(Glass_brick(obj['x'], obj['y'], obj['level']))
+
+        for obj in super_brick_list:
+            if obj['x'] + 4 <= config.WIDTH and obj['y'] <= config.HEIGHT - 5:
+                self.super_bricks.append(Super_Brick(obj['x'], obj['y']))
+
+        # for brick in self.super_bricks:
+        #     with open("debug_print/bricks.txt", "a") as f:
+        #         print(brick.x, brick.y, brick.__class__.__name__, file=f)
 
     # is this power active
     def is_pow_active(self, type):

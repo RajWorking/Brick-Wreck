@@ -41,6 +41,9 @@ class Ball(Object):
     def reflect(self, dir):
         self.speed[dir] *= -1
 
+    def accelerate(self, speedup):
+        self.speed[0] += speedup
+
     @staticmethod
     def check_intersect(x1, x2):
         x1.sort()
