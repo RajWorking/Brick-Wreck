@@ -15,7 +15,7 @@ from object import Object
 class PowerUp(Object):
     def __init__(self, x, y, type):
         super().__init__(shape=[2, 1], speed=[0, 1], x=x, y=y)
-        self.type = type
+        self.__type = type
 
     powers = {
         1: "🥕",  # carrot
@@ -27,7 +27,12 @@ class PowerUp(Object):
         7: "💝",  # heart
     }
 
+    @property
+    def type(self):
+        return self.__type
+
+    @property
     def get_face(self):
-        if self.type not in range(1, len(self.__class__.powers) + 1):
+        if self.__type not in range(1, len(self.__class__.powers) + 1):
             return "🦞"
-        return self.__class__.powers[self.type]
+        return self.__class__.powers[self.__type]

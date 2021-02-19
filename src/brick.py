@@ -4,25 +4,37 @@ from object import Object
 class Brick(Object):
     def __init__(self, x, y):
         super().__init__(shape=[4, 1], x=x, y=y, face="⬛")
-        self.active = False  # active true means it is about to die
+        self._active = False  # active true means it is about to die
 
     def destroy(self):
-        self.active = True
+        self._active = True
+
+    @property
+    def active(self):
+        return self._active
 
 
 class Glass_brick(Brick):
     def __init__(self, x, y, level):
         super().__init__(x, y)
-        self.level = level
+        self.__level = level
 
+    @property
+    def level(self):
+        return self.__level
+
+    def damage(self):
+        self.__level -= 1
+
+    @property
     def get_face(self):
-        if self.level == 1:
+        if self.__level == 1:
             return "🟩"
-        elif self.level == 2:
+        elif self.__level == 2:
             return "🟨"
-        elif self.level == 3:
+        elif self.__level == 3:
             return "🟧"
-        elif self.level == 4:
+        elif self.__level == 4:
             return "🟥"
         return " "
 
@@ -31,6 +43,7 @@ class Super_Brick(Brick):
     def __init__(self, x, y):
         super().__init__(x, y)
 
+    @property
     def get_face(self):
         return "💥"
 

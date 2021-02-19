@@ -7,20 +7,32 @@ class Ball(Object):
         if speed is None:
             speed = [config.INIT_SPEED, -1]
         super().__init__(shape=[2, 1], face="🎱", speed=speed, x=x, y=y)
-        self.moving = moving
-        self.paddle_rel_pos = 0  # relative position of ball on paddle
+        self._moving = moving
+        self._paddle_rel_pos = 0  # relative position of ball on paddle
 
     def release(self):
-        self.moving = 1
+        self._moving = 1
 
     def freeze(self):
-        self.moving = 0
+        self._moving = 0
+
+    @property
+    def moving(self):
+        return self._moving
+
+    @property
+    def paddle_rel_pos(self):
+        return self._paddle_rel_pos
+
+    @paddle_rel_pos.setter
+    def paddle_rel_pos(self, val):
+        self._paddle_rel_pos = val
 
     def reset_looks(self):
         self.set_looks(face="🎱")
 
     def move(self, x=0, y=0):
-        if self.moving == 0:
+        if self._moving == 0:
             self.set_position(x, y)
         else:
             self.set_position(self.x + self.speed[0], self.y + self.speed[1])
