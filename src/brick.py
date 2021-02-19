@@ -50,8 +50,8 @@ class Super_Brick(Brick):
     def explode(self, bricks):
         x1 = self.x - self.shape[0]
         x2 = self.x + self.shape[0]
-        y1 = self.y - 1
-        y2 = self.y + 1
+        y1 = self.y - self.shape[1]
+        y2 = self.y + self.shape[1]
         for brick in bricks:
             if x1 <= brick.x <= x2 and y1 <= brick.y <= y2:
                 brick.destroy()

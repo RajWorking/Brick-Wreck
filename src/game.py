@@ -32,6 +32,8 @@ class Game:
     def game_loop(self):
         kb_inp = KBHit()
         random.seed()
+        _time_begin = time.time()
+        _score = config.MAX_SCORE
         self.__populate_bricks()
         while self.__lives:
             self.__screen.clear()
@@ -43,6 +45,13 @@ class Game:
 
             print("\033[KLives ❤", self.__lives)
             print("\033[KBricks left: ", len(self.__bricks + self.__super_bricks) - self.__unbreakable_cnt)
+            print("\033[KTime Played: ", round(time.time() - _time_begin, 2), "seconds")
+            _score = self.__calc_score(round(time.time() - _time_begin, 2),
+                                              len(self.__bricks + self.__super_bricks) - self.__unbreakable_cnt)
+
+            if _score <= 0:
+                break
+            print("\033[KScore: ", _score)
 
             self.__loop += 1
 
@@ -122,11 +131,13 @@ class Game:
             self.__screen.show()
             time.sleep(1 / self.__game_speed)
             if not config.DEBUG:
-                if len(self.__bricks) == 0:
+                if len(self.__bricks + self.__super_bricks) == 0:
                     break
         print('GAME OVER!')
-        if len(self.__bricks) <= self.__unbreakable_cnt:
-            print("YOU WON!")
+        if len(self.__bricks + self.__super_bricks) <= self.__unbreakable_cnt:
+            print("YOU WON! You Scored: ", _score)
+        elif _score <= 0:
+            print("YOU LOST! TIME is up.")
 
     def __collateral(self):
         for brick in self.__super_bricks:
@@ -306,6 +317,9 @@ class Game:
         for row in range(obj.shape[1]):
             for col in range(obj.shape[0]):
                 self.__screen.display[obj.y + row][obj.x + col] = obj.get_face if col % 2 else ""
+
+    def __calc_score(self, time, bricks):
+        return round(config.MAX_SCORE - time*10 - bricks*10)
 
     def __del__(self):
         self.__screen.clear()
