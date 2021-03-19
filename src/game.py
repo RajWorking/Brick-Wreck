@@ -26,122 +26,151 @@ class Game:
         self.__powers_expire = np.zeros(8)
         self.__loop = 1
         self.__game_speed = config.GAME_SPEED
+        self.__score = config.LEV_BONUS
+        self.__tot_score = 0
+        self.__level = 0
 
         print("\033[?25l\033[2J")  # disappear cursor and clear screen
 
     def game_loop(self):
-        kb_inp = KBHit()
+        self.kb_inp = KBHit()
         random.seed()
-        _time_begin = time.time()
-        _score = config.MAX_SCORE
-        self.__populate_bricks()
-        while self.__lives:
-            self.__screen.clear()
 
-            if config.DEBUG:
-                print(self.__loop, "😁")
-                print("\033[KBall: ", self.__balls[0].x, self.__balls[0].y, self.__balls[0].speed)
-                print("\033[KPowers: ", self.__powers_expire)
+        while self.__level <= config.LEVELS:
+            self.reset_level()
+            while len(self.get_all_bricks()) - self.__unbreakable_cnt:
+                self.__screen.clear()
+                self.__loop += 1
 
-            print("\033[KLives ❤", self.__lives)
-            print("\033[KBricks left: ", len(self.__bricks + self.__super_bricks) - self.__unbreakable_cnt)
-            print("\033[KTime Played: ", round(time.time() - _time_begin, 2), "seconds")
-            _score = self.__calc_score(round(time.time() - _time_begin, 2),
-                                       len(self.__bricks + self.__super_bricks) - self.__unbreakable_cnt)
+                if self.kb_inp.kbhit():
+                    inp_key = self.kb_inp.getch()
+                    self.__handle_input(inp_key)
+                    if inp_key == config.QUIT_CHR:
+                        self.__level = 100
+                        break
+                    elif inp_key == config.SKIP_LEVEL:
+                        break
+                # else:
+                #     print('\033[K no key')
+                self.kb_inp.clear()
 
-            if _score <= 0:
+                if config.DEBUG:
+                    print(self.__loop, "😁")
+                    print("\033[KBall: ", self.__balls[0].x, self.__balls[0].y, self.__balls[0].speed)
+                    print("\033[KPowers: ", self.__powers_expire)
+
+                print("\033[KLives ❤", self.__lives)
+                print("\033[KLevel 🔱", self.__level)
+                print("\033[KBricks left: ", len(self.get_all_bricks()) - self.__unbreakable_cnt)
+                print("\033[KTime Played: ", round(time.time() - self.__time_begin, 2), "seconds")
+                self.__score = self.__tot_score + self.__calc_score(round(time.time() - self.__time_begin, 2),
+                                                                    len(self.get_all_bricks()))
+                print("\033[KScore: ", self.__score)
+
+                self.play_level()
+
+                if self.__score <= 0 or self.__lives <= 0:
+                    break
+
+            if self.__score <= 0 or self.__lives <= 0:
                 break
-            print("\033[KScore: ", _score)
+            self.__level += 1
+            self.__tot_score = self.__score
 
-            self.__loop += 1
-
-            if kb_inp.kbhit():
-                inp_key = kb_inp.getch()
-                if inp_key == config.QUIT_CHR:
-                    break
-                self.__handle_input(inp_key)
-            # else:
-            #     print('\033[K no key')
-
-            kb_inp.clear()
-
-            # Increase refresh rate for fast ball
-            if config.DEBUG:
-                self.__game_speed = 10000
-            elif self.__is_pow_active(4):
-                self.__game_speed = 1.5 * config.GAME_SPEED
-            else:
-                self.__game_speed = config.GAME_SPEED
-
-            # Check power up effects on balls
-            for ball in self.__balls:
-                if self.__is_pow_active(5):
-                    ball.set_looks(face="👺")
-                else:
-                    ball.reset_looks()
-
-                if not self.__is_pow_active(6):
-                    ball.paddle_rel_pos = int(self.__paddle.shape[0] / 2)
-                else:
-                    ball.paddle_rel_pos = min(ball.paddle_rel_pos, self.__paddle.shape[0] - 2)
-
-            # Check power up effects on paddle
-            if config.DEBUG:
-                self.__paddle.set_looks(shape=[config.WIDTH, 2], face="🍄")
-            elif self.__is_pow_active(1):
-                self.__paddle.set_looks(shape=[28, 1], face="🌀")
-            elif self.__is_pow_active(2):
-                self.__paddle.set_looks(shape=[12, 1], face="📍")
-            else:
-                self.__paddle.reset_looks()
-
-            self.__paddle.move(0)
-            self.__draw(self.__paddle)
-
-            for brick in self.__bricks + self.__super_bricks:
-                self.__draw(brick)
-
-            for brick in self.__bricks:
-                if hasattr(brick, 'level'):
-                    brick.change_level()
-
-            for power in self.__powers_falling:
-                self.__draw(power)
-
-            self.__fall_power_ups()
-            self.__collateral()  # clean up bricks from list
-
-            for ball in self.__balls:
-                ball.move(2 * int((self.__paddle.x + ball.paddle_rel_pos) / 2), self.__paddle.y - 1)
-                self.__check_collide(ball)
-
-                if ball.y >= config.HEIGHT:
-                    self.__balls.remove(ball)
-                    # ball.freeze()
-                    # ball.speed = [config.INIT_SPEED, -1]
-                else:
-                    self.__draw(ball)
-                    # print('\033[K ', ball.x, ball.y, ball.speed, ball.moving, ball.paddle_rel_pos)
-                    # if config.DEBUG:
-                    #     with open("debug_print/ball_path.txt", "a") as f:
-                    #         print(self.__loop, ball.x, ball.y, ball.speed, file=f)
-
-            if len(self.__balls) == 0:
-                self.__lives -= 1
-                self.__powers_expire = np.zeros(8)  # reset powers on dying
-                self.__balls = [Ball()]
-
-            print('\033[31m', ''.join('X' for _ in range(config.WIDTH - 2)), '\033[0m')
-            self.__screen.show()
-            time.sleep(1 / self.__game_speed)
-            if not config.DEBUG:
-                if len(self.__bricks + self.__super_bricks) == 0:
-                    break
-        print('GAME OVER!')
-        if len(self.__bricks + self.__super_bricks) <= self.__unbreakable_cnt:
-            print("YOU WON! You Scored: ", _score)
-        elif _score <= 0:
+        print('GAME OVER! Thanks for playing.')
+        if self.__level != 101:
+            print('You reached level', self.__level)
+        if len(self.get_all_bricks()) <= self.__unbreakable_cnt:
+            print("YOU WON! You Scored: ", self.__score)
+        elif self.__score <= 0:
             print("YOU LOST! TIME is up.")
+        elif self.__lives <= 0:
+            print("YOU LOST! All lives are over.")
+
+    def play_level(self):
+
+        # Increase refresh rate for fast ball
+        if config.DEBUG:
+            self.__game_speed = 10000
+        elif self.__is_pow_active(4):
+            self.__game_speed = 1.5 * config.GAME_SPEED
+        else:
+            self.__game_speed = config.GAME_SPEED
+
+        # Check power up effects on balls
+        for ball in self.__balls:
+            if self.__is_pow_active(5):
+                ball.set_looks(face="👺")
+            else:
+                ball.reset_looks()
+
+            if not self.__is_pow_active(6):
+                ball.paddle_rel_pos = int(self.__paddle.shape[0] / 2)
+            else:
+                ball.paddle_rel_pos = min(ball.paddle_rel_pos, self.__paddle.shape[0] - 2)
+
+        # Check power up effects on paddle
+        if config.DEBUG:
+            self.__paddle.set_looks(shape=[config.WIDTH, 2], face="🍄")
+        elif self.__is_pow_active(1):
+            self.__paddle.set_looks(shape=[28, 1], face="🌀")
+        elif self.__is_pow_active(2):
+            self.__paddle.set_looks(shape=[12, 1], face="📍")
+        else:
+            self.__paddle.reset_looks()
+
+        self.__paddle.move(0)
+        self.__draw(self.__paddle)
+
+        for brick in self.get_all_bricks():
+            self.__draw(brick)
+
+        for brick in self.__bricks:
+            if hasattr(brick, 'level'):
+                brick.change_level()
+
+        for power in self.__powers_falling:
+            self.__draw(power)
+
+        self.__fall_power_ups()
+        self.__collateral()  # clean up bricks from list
+
+        for ball in self.__balls:
+            ball.move(2 * int((self.__paddle.x + ball.paddle_rel_pos) / 2), self.__paddle.y - 1)
+            self.__check_collide(ball)
+
+            if ball.y >= config.HEIGHT:
+                self.__balls.remove(ball)
+                # ball.freeze()
+                # ball.speed = [config.INIT_SPEED, -1]
+            else:
+                self.__draw(ball)
+                # print('\033[K ', ball.x, ball.y, ball.speed, ball.moving, ball.paddle_rel_pos)
+                # if config.DEBUG:
+                #     with open("debug_print/ball_path.txt", "a") as f:
+                #         print(self.__loop, ball.x, ball.y, ball.speed, file=f)
+
+        if len(self.__balls) == 0:
+            self.__lives -= 1
+            self.__powers_expire = np.zeros(8)  # reset powers on dying
+            self.__balls = [Ball()]
+
+        print('\033[31m', ''.join('X' for _ in range(config.WIDTH - 2)), '\033[0m')
+        self.__screen.show()
+        time.sleep(1 / self.__game_speed)
+
+    def get_all_bricks(self):
+        return self.__bricks + self.__super_bricks
+
+    def reset_level(self):
+        self.__time_begin = time.time()
+        self.__loop = 1
+        self.__unbreakable_cnt = 0
+        self.__populate_bricks()
+        self.__tot_bricks = len(self.get_all_bricks())
+        self.__powers_expire = np.zeros(8)
+        self.__powers_falling = []
+        self.__balls = [Ball()]
 
     def __collateral(self):
         for brick in self.__super_bricks:
@@ -215,67 +244,120 @@ class Game:
     def __populate_bricks(self):
         brick_list = []
         super_brick_list = []
-        _x = 14
-        _y = 10
+        self.__bricks = []
+        self.__super_bricks = []
 
-        for block in range(0, 3):
-            for grp in range(0, 18):
-                # for grp in range(0, 8):
-                if random.randint(1, 5) == 3:
-                    for br in range(0, 5):
-                        if grp % 3 != block % 3:
-                            brick = {
-                                "x": _x,
-                                "y": _y,
-                            }
-                            super_brick_list.append(brick)
-                            if grp % 3 == block % 3 + 1:
+        if self.__level == 1:
+            _x = 14
+            _y = 10
+
+            for block in range(0, 3):
+                for grp in range(0, 18):
+                    # for grp in range(0, 8):
+                    if random.randint(1, 5) == 3:
+                        for br in range(0, 5):
+                            if grp % 3 != block % 3:
                                 brick = {
-                                    "x": _x - 4,
+                                    "x": _x,
                                     "y": _y,
                                 }
                                 super_brick_list.append(brick)
-                        _x += 2
-                        # _x += 4
-                        _y += 1 if grp % 2 else -1
-                else:
-                    for br in range(0, 5):
-                        if grp % 3 != block % 3:
-                            brick = {
-                                "x": _x,
-                                "y": _y,
-                                "level": random.randint(1, 4)
-                            }
-                            brick_list.append(brick)
-                        _x += 2
-                        # _x += 4
-                        _y += 1 if grp % 2 else -1
-            _y += 5
-            # _y += 1
-            _x = 14
+                                if grp % 3 == block % 3 + 1:
+                                    brick = {
+                                        "x": _x - 4,
+                                        "y": _y,
+                                    }
+                                    super_brick_list.append(brick)
+                            _x += 2
+                            # _x += 4
+                            _y += 1 if grp % 2 else -1
+                    else:
+                        for br in range(0, 5):
+                            if grp % 3 != block % 3:
+                                brick = {
+                                    "x": _x,
+                                    "y": _y,
+                                    "level": random.randint(1, 4)
+                                }
+                                brick_list.append(brick)
+                            _x += 2
+                            # _x += 4
+                            _y += 1 if grp % 2 else -1
+                _y += 5
+                # _y += 1
+                _x = 14
+        elif self.__level == 2:
+            _x = 20
+            _y = 10
 
-        # brick_list = [
-        #     {
-        #         "x": 92,
-        #         "y": 36,
-        #         "level": 1
-        #     },
-        #     {
-        #         "x": 96,
-        #         "y": 36,
-        #         "level": 2
-        #     },
-        #     {
-        #         "x": 100,
-        #         "y": 36,
-        #         "level": 3
-        #     },
-        #     {
-        #         "x": 104,
-        #         "y": 36,
-        #         "level": 4
-        #     }
-        # ]
+            for block in range(0, 10):
+                if random.randint(1, 5) == 3:
+                    _y = 8
+                    for grp in range(0, 20):
+                        brick = {
+                            "x": _x,
+                            "y": _y,
+                        }
+                        super_brick_list.append(brick)
+                        _y += 1
+                else:
+                    _y = 4
+                    for grp in range(0, 25):
+                        brick = {
+                            "x": _x,
+                            "y": _y,
+                            "level": random.randint(1, 4)
+                        }
+                        brick_list.append(brick)
+                        _y += 1
+                _x += 16
+        elif self.__level == 3:
+            _y = 5
+
+            for block in range(0, 7):
+                if random.randint(1, 3) == 3:
+                    _x = 20
+                    for grp in range(0, 40):
+                        brick = {
+                            "x": _x,
+                            "y": _y,
+                        }
+                        super_brick_list.append(brick)
+                        _x += 4
+                else:
+                    _x = 10
+                    for grp in range(0, 45):
+                        brick = {
+                            "x": _x,
+                            "y": _y,
+                            "level": random.randint(1, 4)
+                        }
+                        brick_list.append(brick)
+                        _x += 4
+                _y += 4
+        else:
+            brick_list = [
+                {
+                    "x": 92,
+                    "y": 36,
+                    "level": 2
+                },
+                {
+                    "x": 96,
+                    "y": 36,
+                    "level": 2
+                },
+                {
+                    "x": 100,
+                    "y": 36,
+                    "level": 3
+                },
+                {
+                    "x": 104,
+                    "y": 36,
+                    "level": 4
+                }
+            ]
 
         for obj in brick_list:
             if obj['x'] + 4 <= config.WIDTH and obj['y'] <= config.HEIGHT - 5:
@@ -325,7 +407,7 @@ class Game:
                 self.__screen.display[obj.y + row][obj.x + col] = obj.get_face if col % 2 else ""
 
     def __calc_score(self, time, bricks):
-        return round(config.MAX_SCORE - time * 10 - bricks * 10)
+        return round(config.LEV_BONUS - time * 10 + (self.__tot_bricks - bricks) * 10)
 
     def __del__(self):
         self.__screen.clear()
