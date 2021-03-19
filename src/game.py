@@ -26,7 +26,7 @@ class Game:
         self.__powers_expire = np.zeros(8)
         self.__game_speed = config.GAME_SPEED
         self.__lives = config.LIVES
-        self.__level = 1
+        self.__level = 0
         self.__score = config.LEV_BONUS
         self.__tot_score = 0
         self.__dead_msg = ""
@@ -198,14 +198,15 @@ class Game:
             if brick.active:
                 brick.explode(self.__super_bricks + self.__bricks)
                 self.__super_bricks.remove(brick)
-                with open("debug_print/super_brick.txt", "a") as f:
-                    print(self.__loop, brick.x, brick.y, brick.__class__.__name__, file=f)
+                # with open("debug_print/super_brick.txt", "a") as f:
+                #     print(self.__loop, brick.x, brick.y, brick.__class__.__name__, file=f)
                 break
 
         for brick in self.__bricks:
             if brick.active:
                 if not self.__is_pow_active(5):  # do not drop powerups if thru-ball is active
-                    self.__powers_falling.append(PowerUp(x=brick.x, y=brick.y + 1, type=random.randint(1, 7)))
+                    self.__powers_falling.append(
+                        PowerUp(x=brick.x, y=brick.y + 1, type=random.randint(1, 7), speed=brick.proj_vel))
                 if brick.__class__.__name__ == "Brick":
                     self.__unbreakable_cnt -= 1
                 self.__bricks.remove(brick)
@@ -239,25 +240,29 @@ class Game:
                         print(self.__loop, brick.x, brick.y, file=f)
 
                 if self.__is_pow_active(5):
-                    brick.destroy()
+                    brick.destroy(ball.speed.copy())
                 else:
                     ball.reflect(dir)
                     if hasattr(brick, 'level'):
                         brick.damage()
                         if brick.level <= 0:
-                            brick.destroy()
+                            brick.destroy(ball.speed.copy())
                 break
 
         # Super Bricks
         for brick in self.__super_bricks:
             if (dir := ball.path_cut(brick)) != -1:
-                brick.destroy()
+                brick.destroy(ball.speed.copy())
                 break
 
     def __fall_power_ups(self):
         # PowerUps Falling
         for power in self.__powers_falling:
-            power.y += 1
+            power.set_position(power.x + power.speed[0], power.y + round(power.speed[1]))
+            power.inc_speed(v=min(1, power.speed[1] + 1))
+
+            power.check_walls()
+
             if power.y >= config.HEIGHT - 2:
                 if power.x in range(self.__paddle.x - 1, self.__paddle.x + self.__paddle.shape[0] - 1):
                     self.__powers_expire[power.type] = self.__loop + 300
@@ -434,6 +439,8 @@ class Game:
     def __draw(self, obj):
         for row in range(obj.shape[1]):
             for col in range(obj.shape[0]):
+                # with open('debug_print/blah.txt', 'a') as f:
+                #     print(obj.__class__.__name__, obj.x, obj.y, obj.speed, file=f)
                 self.__screen.display[obj.y + row][obj.x + col] = obj.get_face if col % 2 else ""
 
     def __calc_score(self, time, bricks):

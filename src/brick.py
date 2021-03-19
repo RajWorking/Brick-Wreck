@@ -5,9 +5,17 @@ class Brick(Object):
     def __init__(self, x, y):
         super().__init__(shape=[4, 1], x=x, y=y, face="⬛")
         self._active = False  # active true means it is about to die
+        self.__proj_vel = [2, 1]  # projectile velocity
 
-    def destroy(self):
+    @property
+    def proj_vel(self):
+        return self.__proj_vel
+
+    def destroy(self, vel=None):
+        if vel is None:
+            vel = [0, 1]
         self._active = True
+        self.__proj_vel = vel
 
     def fall(self):
         self.set_position(y=self.y + 1)

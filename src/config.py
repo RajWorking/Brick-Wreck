@@ -9,7 +9,7 @@ HEIGHT = terminal_size.lines - 8
 
 GAME_SPEED = 15
 LIVES = 2
-INIT_SPEED = 0
+INIT_SPEED = -2
 MAX_BALLS = 6
 LEV_BONUS = 500
 LEVELS = 3

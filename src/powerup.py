@@ -13,8 +13,10 @@ from object import Object
 
 
 class PowerUp(Object):
-    def __init__(self, x, y, type):
-        super().__init__(shape=[2, 1], speed=[0, 1], x=x, y=y)
+    def __init__(self, x, y, type, speed=None):
+        if speed is None:
+            speed = [0, -1]
+        super().__init__(shape=[2, 1], speed=speed, x=x, y=y)
         self.__type = type
 
     powers = {
