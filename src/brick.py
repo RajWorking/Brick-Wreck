@@ -18,23 +18,33 @@ class Glass_brick(Brick):
     def __init__(self, x, y, level):
         super().__init__(x, y)
         self.__level = level
+        self.__rainbow = False
+
+    def set_rainbow(self):
+        self.__rainbow = True
 
     @property
     def level(self):
         return self.__level
 
+    def change_level(self):
+        if self.__rainbow:
+            self.__level = 1 + (self.__level) % 4
+
     def damage(self):
-        self.__level -= 1
+        if not self.__rainbow:
+            self.__level -= 1
+        self.__rainbow = False
 
     @property
     def get_face(self):
-        if self.__level == 1:
+        if self.level == 1:
             return "🟩"
-        elif self.__level == 2:
+        elif self.level == 2:
             return "🟨"
-        elif self.__level == 3:
+        elif self.level == 3:
             return "🟧"
-        elif self.__level == 4:
+        elif self.level == 4:
             return "🟥"
         return " "
 

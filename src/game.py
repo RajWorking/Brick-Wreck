@@ -47,7 +47,7 @@ class Game:
             print("\033[KBricks left: ", len(self.__bricks + self.__super_bricks) - self.__unbreakable_cnt)
             print("\033[KTime Played: ", round(time.time() - _time_begin, 2), "seconds")
             _score = self.__calc_score(round(time.time() - _time_begin, 2),
-                                              len(self.__bricks + self.__super_bricks) - self.__unbreakable_cnt)
+                                       len(self.__bricks + self.__super_bricks) - self.__unbreakable_cnt)
 
             if _score <= 0:
                 break
@@ -100,6 +100,10 @@ class Game:
 
             for brick in self.__bricks + self.__super_bricks:
                 self.__draw(brick)
+
+            for brick in self.__bricks:
+                if hasattr(brick, 'level'):
+                    brick.change_level()
 
             for power in self.__powers_falling:
                 self.__draw(power)
@@ -282,6 +286,8 @@ class Game:
                     self.__super_bricks.append(Super_Brick(obj['x'], obj['y']))
                 else:
                     self.__bricks.append(Glass_brick(obj['x'], obj['y'], obj['level']))
+                    if random.randint(1, 10) < 3:
+                        self.__bricks[-1].set_rainbow()
 
         for obj in super_brick_list:
             if obj['x'] + 4 <= config.WIDTH and obj['y'] <= config.HEIGHT - 5:
@@ -319,7 +325,7 @@ class Game:
                 self.__screen.display[obj.y + row][obj.x + col] = obj.get_face if col % 2 else ""
 
     def __calc_score(self, time, bricks):
-        return round(config.MAX_SCORE - time*10 - bricks*10)
+        return round(config.MAX_SCORE - time * 10 - bricks * 10)
 
     def __del__(self):
         self.__screen.clear()
