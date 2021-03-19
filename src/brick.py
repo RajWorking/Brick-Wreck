@@ -9,6 +9,9 @@ class Brick(Object):
     def destroy(self):
         self._active = True
 
+    def fall(self):
+        self.set_position(y=self.y + 1)
+
     @property
     def active(self):
         return self._active
@@ -65,5 +68,5 @@ class Super_Brick(Brick):
         for brick in bricks:
             if x1 <= brick.x <= x2 and y1 <= brick.y <= y2:
                 brick.destroy()
-                # with open("debug_print/brick_collide.txt", "a") as f:
-                #     print(self.x, self.y, ' -- ', brick.x, brick.y, file=f)
+                with open("debug_print/brick_collide.txt", "a") as f:
+                    print(self.x, self.y, ' -- ', brick.x, brick.y, file=f)

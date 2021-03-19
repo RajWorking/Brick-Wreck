@@ -16,19 +16,20 @@ class Game:
 
     def __init__(self):
         self.__screen = Screen()
+        self.__loop = 1
         self.__paddle = Paddle()
         self.__balls = [Ball()]
-        self.__lives = config.LIVES
         self.__bricks = []
         self.__super_bricks = []
         self.__unbreakable_cnt = 0
         self.__powers_falling = []
         self.__powers_expire = np.zeros(8)
-        self.__loop = 1
         self.__game_speed = config.GAME_SPEED
+        self.__lives = config.LIVES
+        self.__level = 1
         self.__score = config.LEV_BONUS
         self.__tot_score = 0
-        self.__level = 0
+        self.__dead_msg = ""
 
         print("\033[?25l\033[2J")  # disappear cursor and clear screen
 
@@ -36,7 +37,7 @@ class Game:
         self.kb_inp = KBHit()
         random.seed()
 
-        while self.__level <= config.LEVELS:
+        while self.is_alive:
             self.reset_level()
             while len(self.get_all_bricks()) - self.__unbreakable_cnt:
                 self.__screen.clear()
@@ -69,23 +70,39 @@ class Game:
 
                 self.play_level()
 
-                if self.__score <= 0 or self.__lives <= 0:
+                if not self.is_alive:
                     break
 
-            if self.__score <= 0 or self.__lives <= 0:
+            if not self.is_alive:
                 break
             self.__level += 1
             self.__tot_score = self.__score
 
         print('GAME OVER! Thanks for playing.')
-        if self.__level != 101:
+        if self.__level <= config.LEVELS:
             print('You reached level', self.__level)
-        if len(self.get_all_bricks()) <= self.__unbreakable_cnt:
-            print("YOU WON! You Scored: ", self.__score)
-        elif self.__score <= 0:
-            print("YOU LOST! TIME is up.")
-        elif self.__lives <= 0:
-            print("YOU LOST! All lives are over.")
+        elif self.__level == config.LEVELS + 1:
+            print('All levels completed.')
+        print(self.__dead_msg)
+
+    @property
+    def is_alive(self):
+        if self.__level > config.LEVELS:
+            self.__dead_msg = "YOU WON! You Scored: " + str(self.__tot_score)
+            return False
+        if self.__score <= 0:
+            self.__dead_msg = "YOU LOST! TIME is up."
+            return False
+        if self.__lives <= 0:
+            self.__dead_msg = "YOU LOST! All lives are over."
+            return False
+
+        for brick in self.get_all_bricks():
+            if brick.y >= config.HEIGHT - 3:
+                self.__dead_msg = "YOU LOST! Bricks too close."
+                return False  # instant death
+
+        return True
 
     def play_level(self):
 
@@ -172,11 +189,19 @@ class Game:
         self.__powers_falling = []
         self.__balls = [Ball()]
 
+    def falling_bricks(self):
+        for brick in self.get_all_bricks():
+            brick.fall()
+
     def __collateral(self):
         for brick in self.__super_bricks:
             if brick.active:
                 brick.explode(self.__super_bricks + self.__bricks)
                 self.__super_bricks.remove(brick)
+                with open("debug_print/super_brick.txt", "a") as f:
+                    print(self.__loop, brick.x, brick.y, brick.__class__.__name__, file=f)
+                break
+
         for brick in self.__bricks:
             if brick.active:
                 if not self.__is_pow_active(5):  # do not drop powerups if thru-ball is active
@@ -184,6 +209,7 @@ class Game:
                 if brick.__class__.__name__ == "Brick":
                     self.__unbreakable_cnt -= 1
                 self.__bricks.remove(brick)
+                break
 
     def __check_collide(self, ball):
         # Walls
@@ -202,6 +228,9 @@ class Game:
                     ball.freeze()
                     ball.paddle_rel_pos = ball.x - self.__paddle.x
 
+                if self.__loop > config.TRIGGER_FALL:
+                    self.falling_bricks()
+
         # Bricks
         for brick in self.__bricks:
             if (dir := ball.path_cut(brick)) != -1:
@@ -217,12 +246,13 @@ class Game:
                         brick.damage()
                         if brick.level <= 0:
                             brick.destroy()
-                # break
+                break
 
         # Super Bricks
         for brick in self.__super_bricks:
             if (dir := ball.path_cut(brick)) != -1:
                 brick.destroy()
+                break
 
     def __fall_power_ups(self):
         # PowerUps Falling
